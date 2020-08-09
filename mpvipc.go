@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net"
+	"strings"
 	"sync"
 )
 
@@ -69,17 +70,26 @@ func NewConnection(socketName string) *Connection {
 // It also starts listening to events, so ListenForEvents() can be called
 // afterwards.
 func (c *Connection) Open() error {
+	var err error
 	c.lock.Lock()
 	defer c.lock.Unlock()
 
 	if c.client != nil {
 		return fmt.Errorf("already open")
 	}
-	client, err := dial(c.socketName)
+
+	ss := strings.Split(c.socketName, "!")
+	switch len(ss) {
+	case 3:
+		c.client, err = net.Dial(ss[0], ss[1]+":"+ss[2])
+	case 2:
+		c.client, err = net.Dial(ss[0], ss[1])
+	default:
+		c.client, err = dial(c.socketName)
+	}
 	if err != nil {
 		return fmt.Errorf("can't connect to mpv's socket: %s", err)
 	}
-	c.client = client
 	go c.listen()
 	return nil
 }
